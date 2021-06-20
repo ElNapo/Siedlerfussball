@@ -1,8 +1,5 @@
-For the next release:
-	Balancing?
-	Intelligent loading: Pref xmls/luas from map file, if not existing load from repo
-
 For future releases:
+	Fix imports if lua/xml are not in s5x file
 	Update to 16 players
 	Some automated version checker of sorts?
 	Make (some) spectators less lovecraftian
