@@ -1,0 +1,9 @@
+For the next release:
+	Balancing?
+	Intelligent loading: Pref xmls/luas from map file, if not existing load from repo
+
+For future releases:
+	Update to 16 players
+	Some automated version checker of sorts?
+	Make (some) spectators less lovecraftian
+	Add more eye candy to the map?

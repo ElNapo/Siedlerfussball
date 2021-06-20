@@ -1,4 +1,7 @@
 
+VERSION = "0.2.0"
+TIME = "20. Juni 2021"
+
 function GameCallback_OnGameStart()
  
 	-- Include global tool script functions
@@ -105,7 +108,7 @@ end
 
 SoccerGUI = {}
 function StartGUI()
-	S5Hook.LoadGUI("maps\\user\\soccerGUI.xml")
+	S5Hook.LoadGUI("maps\\user\\siedlerfussball\\soccerGUI.xml")
 	XGUIEng.ShowWidget("SW", 1)
 	XGUIEng.ShowWidget("SWStartMenu", 1)
 	
@@ -131,6 +134,7 @@ function StartGUI()
 	CNetwork.SetNetworkHandler("GUI_OnPlus", GUI_OnPlus)
 	CNetwork.SetNetworkHandler("GUI_OnMinus", GUI_OnMinus)
 	CNetwork.SetNetworkHandler("GUI_OnStart", GUI_OnStart)
+	SoccerGUI.PrepVersionStuff()
 	return true
 end
 function SoccerGUI.StartGame() -- the actual start button
@@ -174,6 +178,13 @@ function GUI_OnButton( _sender, _id)
 			XGUIEng.SetText("SoccerRule3Button", "@center Ja")
 		else
 			XGUIEng.SetText("SoccerRule3Button", "@center Nein")
+		end
+	elseif _id == 4 then
+		Settings.Boards = not Settings.Boards 
+		if Settings.Boards then
+			XGUIEng.SetText("SoccerRule4Button", "@center Ja")
+		else
+			XGUIEng.SetText("SoccerRule4Button", "@center Nein")
 		end
 	end
 end
@@ -219,7 +230,7 @@ SoccerGUI.Tooltips = {
 	[1] = "Stellt die Spieldauer in Minuten ein.",
 	[2] = "Stellt die Anzahl der Helden pro Team ein.",
 	[3] = "Aktiviert oder deaktiviert den Paranoiamodus.",
-	[4] = "NICHT IMPLEMENTIERT!",
+	[4] = "Falls aktiv, wird der Ball an der Spielfeldbegrenzung abprallen es gibt keine Einwürfe, Ecken oder Abstöße!",
 	["Start"] = "Startet das Spiel."
 }
 function SoccerGUI.HandleTooltip( _id)
@@ -264,6 +275,20 @@ function GUI_CountdownJob()
 	end
 end
 
+function SoccerGUI.PrepVersionStuff()
+	XGUIEng.ShowWidget("VCMP_Window", 1)
+	XGUIEng.SetWidgetPosition("VCMP_Window", 0, 42)
+	XGUIEng.ShowAllSubWidgets("VCMP_Window", 0)
+	XGUIEng.ShowWidget("VCMP_Team1", 1)
+	XGUIEng.ShowAllSubWidgets("VCMP_Team1", 0)
+	
+	XGUIEng.ShowWidget("VCMP_Team1PointGame", 1)
+	XGUIEng.ShowWidget("VCMP_Team1PointBG", 0)
+	XGUIEng.SetWidgetSize("VCMP_Team1Points", 128, 16)
+	XGUIEng.SetWidgetPosition("VCMP_Team1Points", 0, 0)
+	
+	XGUIEng.SetText("VCMP_Team1Points", "Version "..VERSION.." @cr "..TIME)
+end
 
 
 -- Anarkis numbers: 130, 210
@@ -299,6 +324,9 @@ function StartGame()
 		for j = 1, table.getn(heroTable) do
 			SW.SetSettlerExploration( heroTable[j], 15)
 		end
+	end
+	if Settings.Boards then
+		CreateBoards()
 	end
 	Trigger.RequestTrigger( Events.LOGIC_EVENT_ENTITY_CREATED, nil, "OnEntityCreated", 1)
 	SpawnHeroes()
@@ -518,26 +546,41 @@ function BallJob()
 	-- X \in [3400, 16700]
 	-- Goals:
 	-- Y \in [8800, 10500]
-	
 	-- THROW-INs
 	if SoccerData.BallPos[2] > 13300 or SoccerData.BallPos[2] < 6100 then
-		if SoccerData.LastTeam == 1 then
-			Message("Einwurf für das Nordteam!")
-		else
-			Message("Einwurf für das Südteam!")
+		--default behavior, calculate throw-in stuff
+		if not Settings.Boards then
+			if SoccerData.LastTeam == 1 then
+				Message("Einwurf für das Nordteam!")
+			else
+				Message("Einwurf für das Südteam!")
+			end
+			SetBallPos( {SoccerData.BallPos[1], ClipValue( SoccerData.BallPos[2], 6100, 13300)})
+			local myHero = GetNearestHeroFromTeam( 3 - SoccerData.LastTeam, SoccerData.BallPos)
+			-- apply knock back to all heroes nearby
+			PushHeroesBack( SoccerData.BallPos, myHero)
+			PlayRefSound()
+			-- where exactly is the throw-in?
+			if SoccerData.BallPos[2] == 13300 then
+				SetPosition( myHero, {SoccerData.BallPos[1], 13400}, true)
+			else
+				SetPosition( myHero, {SoccerData.BallPos[1], 6000}, true)
+			end
+			return
+		else -- just bounce :D
+			LuaDebugger.Log(SoccerData.BallPos)
+			LuaDebugger.Log(SoccerData.BallVelo)
+			
+			if SoccerData.BallPos[2] > 13300 then
+				SoccerData.BallPos[2] = 2*13300 - SoccerData.BallPos[2]
+			else
+				SoccerData.BallPos[2] = 2*6100 - SoccerData.BallPos[2] 
+			end
+			SoccerData.BallVelo[2] = -SoccerData.BallVelo[2]
+			SetBallPos(SoccerData.BallPos, true)
+			LuaDebugger.Log(SoccerData.BallPos)
+			LuaDebugger.Log(SoccerData.BallVelo)
 		end
-		SetBallPos( {SoccerData.BallPos[1], ClipValue( SoccerData.BallPos[2], 6100, 13300)})
-		local myHero = GetNearestHeroFromTeam( 3 - SoccerData.LastTeam, SoccerData.BallPos)
-		-- apply knock back to all heroes nearby
-		PushHeroesBack( SoccerData.BallPos, myHero)
-		PlayRefSound()
-		-- where exactly is the throw-in?
-		if SoccerData.BallPos[2] == 13300 then
-			SetPosition( myHero, {SoccerData.BallPos[1], 13400}, true)
-		else
-			SetPosition( myHero, {SoccerData.BallPos[1], 6000}, true)
-		end
-		return
 	end
 	
 	-- GOAL / CORNER KICK
@@ -555,24 +598,30 @@ function BallJob()
 			ResumeCounter = 8
 			StartSimpleJob("ResumeGameJob")
 		else -- or corner kick/goal keeper job?
-			if SoccerData.LastTeam == 1 then -- corner kick
-				Message("Ecke für das Nordteam!")
-				PlayRefSound()
-				if SoccerData.BallPos[2] > 10500 then
-					SetBallPos( {3500, 13200})
-				else
-					SetBallPos( {3500, 6200})
+			if not Settings.Boards then 
+				if SoccerData.LastTeam == 1 then -- corner kick
+					Message("Ecke für das Nordteam!")
+					PlayRefSound()
+					if SoccerData.BallPos[2] > 10500 then
+						SetBallPos( {3500, 13200})
+					else
+						SetBallPos( {3500, 6200})
+					end
+					local myHero = GetNearestHeroFromTeam( 2, SoccerData.BallPos)
+					PushHeroesBack( SoccerData.BallPos, myHero)
+					SetPosition( myHero, {3400, SoccerData.BallPos[2]}, true)
+				else -- goal keeper job
+					Message("Der Ball geht an den Keeper des Südteams!")
+					PlayRefSound()
+					SetBallPos( {3500, 9650})
+					local myHero = GetNearestHeroFromTeam( 1, SoccerData.BallPos)
+					PushHeroesBack( SoccerData.BallPos, myHero)
+					SetPosition( myHero, {3400, 9650}, true)
 				end
-				local myHero = GetNearestHeroFromTeam( 2, SoccerData.BallPos)
-				PushHeroesBack( SoccerData.BallPos, myHero)
-				SetPosition( myHero, {3400, SoccerData.BallPos[2]}, true)
-			else -- goal keeper job
-				Message("Der Ball geht an den Keeper des Südteams!")
-				PlayRefSound()
-				SetBallPos( {3500, 9650})
-				local myHero = GetNearestHeroFromTeam( 1, SoccerData.BallPos)
-				PushHeroesBack( SoccerData.BallPos, myHero)
-				SetPosition( myHero, {3400, 9650}, true)
+			else -- here just bounce
+				SoccerData.BallPos[1] = 2*3400 - SoccerData.BallPos[1]
+				SetBallPos(SoccerData.BallPos, true)
+				SoccerData.BallVelo[1] = -SoccerData.BallVelo[1]
 			end
 		end
 		return
@@ -592,24 +641,30 @@ function BallJob()
 			ResumeCounter = 8
 			StartSimpleJob("ResumeGameJob")
 		else -- or corner kick/goal keeper job?
-			if SoccerData.LastTeam == 2 then -- corner kick
-				Message("Ecke für das Südteam!")
-				PlayRefSound()
-				if SoccerData.BallPos[2] > 10500 then
-					SetBallPos( {16600, 13200})
-				else
-					SetBallPos( {16600, 6200})
+			if not Settings.Boards then 
+				if SoccerData.LastTeam == 2 then -- corner kick
+					Message("Ecke für das Südteam!")
+					PlayRefSound()
+					if SoccerData.BallPos[2] > 10500 then
+						SetBallPos( {16600, 13200})
+					else
+						SetBallPos( {16600, 6200})
+					end
+					local myHero = GetNearestHeroFromTeam( 1, SoccerData.BallPos)
+					PushHeroesBack( SoccerData.BallPos, myHero)
+					SetPosition( myHero, {16700, SoccerData.BallPos[2]}, true)
+				else -- goal keeper job
+					Message("Der Ball geht an den Keeper des Nordteams!")
+					PlayRefSound()
+					SetBallPos( {16600, 9650})
+					local myHero = GetNearestHeroFromTeam( 2, SoccerData.BallPos)
+					PushHeroesBack( SoccerData.BallPos, myHero)
+					SetPosition( myHero, {16800, 9650}, true)
 				end
-				local myHero = GetNearestHeroFromTeam( 1, SoccerData.BallPos)
-				PushHeroesBack( SoccerData.BallPos, myHero)
-				SetPosition( myHero, {16700, SoccerData.BallPos[2]}, true)
-			else -- goal keeper job
-				Message("Der Ball geht an den Keeper des Nordteams!")
-				PlayRefSound()
-				SetBallPos( {16600, 9650})
-				local myHero = GetNearestHeroFromTeam( 2, SoccerData.BallPos)
-				PushHeroesBack( SoccerData.BallPos, myHero)
-				SetPosition( myHero, {16800, 9650}, true)
+			else
+				SoccerData.BallPos[1] = 2*16700 - SoccerData.BallPos[1]
+				SoccerData.BallVelo[1] = -SoccerData.BallVelo[1]
+				SetBallPos(SoccerData.BallPos, true)
 			end
 		end
 		return
@@ -689,6 +744,34 @@ function CreateSpectators()
 		eId = Logic.CreateEntity(Entities.XA_Deer, x, y + off*25, 90, 0)
 		Logic.SuspendEntity(eId)
 		Logic.SetModelAndAnimSet( eId, listOfModels[math.random(modelCount)])
+	end
+end
+function CreateBoards()
+	-- Field:
+	-- Y \in [6100, 13300]
+	-- X \in [3400, 16700]
+	-- Goals:
+	-- Y \in [8800, 10500]
+	local eId, x, y
+	for j = 1, 34 do
+		x = 13300/34 *(j-1) + 3600
+		eId = Logic.CreateEntity(Entities.XD_Rock1, x, 6100, 0, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid4)
+		eId = Logic.CreateEntity(Entities.XD_Rock1, x, 13300, 0, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid4)
+	end
+	for j = 1, 7 do
+		y = 2700/7*(j-1) + 6300
+		eId = Logic.CreateEntity(Entities.XD_Rock1, 3400, y, 90, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid1)
+		eId = Logic.CreateEntity(Entities.XD_Rock1, 16700, y, 90, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid1)
+	end
+	for y = 10700, 13100, 400 do
+		eId = Logic.CreateEntity(Entities.XD_Rock1, 3400, y, 90, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid1)
+		eId = Logic.CreateEntity(Entities.XD_Rock1, 16700, y, 90, 0)
+		Logic.SetModelAndAnimSet( eId, Models.XD_IronGrid1)
 	end
 end
 
@@ -959,8 +1042,10 @@ function PushTeamHeroesBack( _pos, _team)
 		end
 	end
 end
-function SetBallPos( _pos)
-	SoccerData.BallVelo = {0,0}
+function SetBallPos( _pos, _keepVelo)
+	if not _keepVelo then
+		SoccerData.BallVelo = {0,0}
+	end
 	SoccerData.BallPos = _pos
 	DestroyEntity( SoccerData.BallId)
 	SoccerData.BallId = Logic.CreateEntity( BALLTYPE, _pos[1], _pos[2], 0, SoccerData.BallRot)
