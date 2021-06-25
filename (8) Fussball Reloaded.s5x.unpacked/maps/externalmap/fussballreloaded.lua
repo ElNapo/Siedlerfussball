@@ -1,6 +1,6 @@
 
-VERSION = "0.2.0"
-TIME = "20. Juni 2021"
+VERSION = "0.2.1"
+TIME = "25. Juni 2021"
 
 function GameCallback_OnGameStart()
  
@@ -13,6 +13,7 @@ function GameCallback_OnGameStart()
 
 	InstallS5Hook()
 	SW.SV.Init()
+	
 	
 	IncludeGlobals("Comfort")
 	-- Init  global MP stuff
@@ -62,7 +63,6 @@ function GameCallback_OnGameStart()
 			end
 		end
 	end
-	
 	LocalMusic.UseSet = HIGHLANDMUSIC
 	SetupHighlandWeatherGfxSet()
 	AddPeriodicSummer(10)
@@ -100,6 +100,18 @@ function GameCallback_OnGameStart()
 	end
 	LoadSetPosition()
 	
+	-- S5Hook.AddArchive()
+	-- if S5Hook.GetTopArchive() == nil then
+		-- ADDARCHIVEFAILED = true
+	-- end
+	--S5Hook.LoadGUI("maps\\externalmap\\soccerGUI.xml")
+	
+	-- TODO: FIX THIS SHIET
+	S5Hook.LoadGUI("data/maps/externalmap/soccergui.xml")
+	if XGUIEng.GetWidgetID("SW") == 0 then
+		EXTERNALGUINOTLOADED = true
+		S5Hook.LoadGUI("maps\\user\\siedlerfussball\\soccergui.xml")
+	end
 	StartSimpleJob("StartGUI")
 	
 end
@@ -107,16 +119,8 @@ end
 
 SoccerGUI = {}
 function StartGUI()
-	S5Hook.AddArchive()
-	if S5Hook.GetTopArchive() == nil then
-		ADDARCHIVEFAILED = true
-	end
-	--S5Hook.LoadGUI("maps\\externalmap\\soccerGUI.xml")
-	S5Hook.LoadGUI("data/maps/externalmap/soccergui.xml")
-	if XGUIEng.GetWidgetID("SW") == 0 then
-		EXTERNALGUINOTLOADED = true
-		S5Hook.LoadGUI("maps\\user\\siedlerfussball\\soccerGUI.xml")
-	end
+
+	--LuaDebugger.Break()
 	XGUIEng.ShowWidget("SW", 1)
 	XGUIEng.ShowWidget("SWStartMenu", 1)
 	
@@ -143,6 +147,7 @@ function StartGUI()
 	CNetwork.SetNetworkHandler("GUI_OnMinus", GUI_OnMinus)
 	CNetwork.SetNetworkHandler("GUI_OnStart", GUI_OnStart)
 	SoccerGUI.PrepVersionStuff()
+	--LuaDebugger.Break()
 	return true
 end
 function SoccerGUI.StartGame() -- the actual start button
