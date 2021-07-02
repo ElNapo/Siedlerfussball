@@ -12,6 +12,9 @@ function GameCallback_OnGameStart()
 	
 
 	InstallS5Hook()
+	if S5Hook == nil then
+		LuaDebugger.Log("Loading S5Hook failed!")
+	end
 	SW.SV.Init()
 	
 	
@@ -107,10 +110,10 @@ function GameCallback_OnGameStart()
 	--S5Hook.LoadGUI("maps\\externalmap\\soccerGUI.xml")
 	
 	-- TODO: FIX THIS SHIET
-	S5Hook.LoadGUI("data/maps/externalmap/soccergui.xml")
-	if XGUIEng.GetWidgetID("SW") == 0 then
-		EXTERNALGUINOTLOADED = true
+	if LUALOADFAILED then
 		S5Hook.LoadGUI("maps\\user\\siedlerfussball\\soccergui.xml")
+	else
+		S5Hook.LoadGUI("data/maps/externalmap/soccergui.xml")
 	end
 	StartSimpleJob("StartGUI")
 	
@@ -300,7 +303,7 @@ function SoccerGUI.PrepVersionStuff()
 	XGUIEng.SetWidgetSize("VCMP_Team1Points", 128, 16)
 	XGUIEng.SetWidgetPosition("VCMP_Team1Points", 0, 0)
 	
-	if EXTERNALGUINOTLOADED then
+	if LUALOADFAILED then
 		XGUIEng.SetText("VCMP_Team1Points", "Version "..VERSION.." @cr "..TIME.." @cr @color:255,0,0 MAP NOT COMPLETE")
 	else	
 		XGUIEng.SetText("VCMP_Team1Points", "Version "..VERSION.." @cr "..TIME)
@@ -310,6 +313,7 @@ end
 
 -- Anarkis numbers: 130, 210
 BALLTYPE = Entities.XD_RockTideland3
+BALLMODEL = Models.XD_RockTideland3
 SoccerConfig = {
 	KickDistance = 350,
 	StopDistance = 250,
@@ -336,6 +340,7 @@ function StartGame()
 			DestroyEntity("Explore"..i)
 			Logic.SetShareExplorationWithPlayerFlag( GUI.GetPlayerID(), i, 0)
 		end
+		Logic.SetShareExplorationWithPlayerFlag( GUI.GetPlayerID(), GUI.GetPlayerID(), 1)
 		local heroTable = {
 			Entities.PU_Hero2,
 			Entities.PU_Hero3,
@@ -537,7 +542,8 @@ function BallJob()
 		DestroyEntity( SoccerData.BallId)
 		SoccerData.BallRot = SoccerData.BallRot + 0.001*veloAbs
 		SoccerData.BallId = Logic.CreateEntity( BALLTYPE, SoccerData.BallPos[1], SoccerData.BallPos[2], 0, SoccerData.BallRot)
-		if colHero ~= 0 then
+		Logic.SetModelAndAnimSet( SoccerData.BallId, BALLMODEL)
+		if colHero ~= 0 then 
 			SoccerData.BallVelo = {0,0}
 			veloAbs = 0
 		end
@@ -993,14 +999,16 @@ end
 function DoGoalReset()
 	local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler())
 	local countA, countB = 1,1
+	local newId
 	for i = 1, table.getn(heroTable) do
 		if GetTeamByPlayerId(GetPlayer(heroTable[i])) == 1 then
-			SetPosition( heroTable[i], GetPos("T2_"..countA))
+			newId = SetPosition( heroTable[i], GetPos("T2_"..countA))
 			countA = math.mod(countA, 11) + 1
 		else
-			SetPosition( heroTable[i], GetPos("T1_"..countB))
+			newId = SetPosition( heroTable[i], GetPos("T1_"..countB))
 			countB = math.mod(countB, 11) + 1
 		end
+		Logic.SetEntitySelectableFlag( newId, 0)
 		DestroyEntity( heroTable[i])
 	end
 end
@@ -1028,6 +1036,10 @@ function ResumeGameJob()
 		ResumeCounter = ResumeCounter - 1
 	else
 		Message("HAJIME!")
+		local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler())
+		for i = 1, table.getn(heroTable) do 
+			Logic.SetEntitySelectableFlag( heroTable[i], 1)
+		end
 		SoccerData.GameRunning = true
 		Sound.PlayGUISound( Sounds.fanfare , 100 )
 		return true
@@ -1072,6 +1084,7 @@ function SetBallPos( _pos, _keepVelo)
 	SoccerData.BallPos = _pos
 	DestroyEntity( SoccerData.BallId)
 	SoccerData.BallId = Logic.CreateEntity( BALLTYPE, _pos[1], _pos[2], 0, SoccerData.BallRot)
+	Logic.SetModelAndAnimSet( SoccerData.BallId, BALLMODEL)
 end
 
 -- Common checks for the kick logic
@@ -1192,7 +1205,17 @@ function OnGameOver()
 	GUI.AddStaticNote("Das Endergebnis: "..SoccerData.GoalsSouth.." zu "..SoccerData.GoalsNorth)
 	GUI.AddStaticNote(" ")
 	GUI.AddStaticNote("Wir danken allen Zuschauern für Ihre Aufmerksamkeit. Schalten Sie auch nächstes Mal wieder ein.")
-	GUI.AddStaticNote("Dieses Spiel wurde Ihnen präsentiert von @color:178,34,34 RAID SHADOW LEGENDS")
+	local listOfSponsors = {
+		"@color:178,34,34 RAID SHADOW LEGENDS",
+		"@color:255,69,0 RAYCON",
+		"@color:255,255,255 KORO DROGERIE",
+		"@color:178,34,34 DRECKS MOBILE CASH GRAB GAME #52341",
+		"@color:255,0,255 NAPO! @color:255,255,255 HULDIGT IHM!",
+		"@color:0,206,209 EUCH AUF ONLYFANS!",
+		"@color:0,206,209 EUCH AUF PATREON!"
+	}
+	local sponsor = listOfSponsors[math.random(table.getn(listOfSponsors))]
+	GUI.AddStaticNote("Dieses Spiel wurde Ihnen präsentiert von "..sponsor)
 	if winner == GetTeamByPlayerId(GUI.GetPlayerID()) then
 		Sound.PlayGUISound( Sounds.VoicesMentor_VC_YourTeamHasWon_rnd_01, 100 )
 	else
@@ -1215,6 +1238,7 @@ function LoadSetPosition()
 		if selected then
 			GUI.SelectEntity( newId)
 		end
+		return newId
 	end
 end
 function GetPos( _id)

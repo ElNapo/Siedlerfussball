@@ -1,6 +1,17 @@
-For future releases:
-	Fix imports if lua/xml are not in s5x file
-	Update to 16 players
-	Some automated version checker of sorts?
+For next release:
 	Make (some) spectators less lovecraftian
 	Add more eye candy to the map?
+
+For future releases:
+	Update to 16 players
+	Some automated version checker of sorts? Announce version in all chat?
+	Implement offsite?
+	Implement restart system?
+	
+Prob done:
+	THROW-IN BLOCKS PLAYERS
+	Stein ohne Blocking?
+	Stein sollte keine Helden löschen können
+	Helden beim Anstoß unselektierbar machen?
+	Add more flavour to game over screen
+	
