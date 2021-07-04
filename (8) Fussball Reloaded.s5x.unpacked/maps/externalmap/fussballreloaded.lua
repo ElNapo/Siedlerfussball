@@ -1,6 +1,6 @@
 
-VERSION = "0.2.1"
-TIME = "25. Juni 2021"
+VERSION = "0.3.0"
+TIME = "4. Juli 2021"
 
 function GameCallback_OnGameStart()
  
@@ -103,13 +103,6 @@ function GameCallback_OnGameStart()
 	end
 	LoadSetPosition()
 	
-	-- S5Hook.AddArchive()
-	-- if S5Hook.GetTopArchive() == nil then
-		-- ADDARCHIVEFAILED = true
-	-- end
-	--S5Hook.LoadGUI("maps\\externalmap\\soccerGUI.xml")
-	
-	-- TODO: FIX THIS SHIET
 	if LUALOADFAILED then
 		S5Hook.LoadGUI("maps\\user\\siedlerfussball\\soccergui.xml")
 	else
@@ -597,8 +590,8 @@ function BallJob()
 			end
 			return
 		else -- just bounce :D
-			LuaDebugger.Log(SoccerData.BallPos)
-			LuaDebugger.Log(SoccerData.BallVelo)
+			--LuaDebugger.Log(SoccerData.BallPos)
+			--LuaDebugger.Log(SoccerData.BallVelo)
 			
 			if SoccerData.BallPos[2] > 13300 then
 				SoccerData.BallPos[2] = 2*13300 - SoccerData.BallPos[2]
@@ -607,8 +600,8 @@ function BallJob()
 			end
 			SoccerData.BallVelo[2] = -SoccerData.BallVelo[2]
 			SetBallPos(SoccerData.BallPos, true)
-			LuaDebugger.Log(SoccerData.BallPos)
-			LuaDebugger.Log(SoccerData.BallVelo)
+			--LuaDebugger.Log(SoccerData.BallPos)
+			--LuaDebugger.Log(SoccerData.BallVelo)
 		end
 	end
 	
@@ -703,7 +696,7 @@ end
 function CheckForHeroCollisions()
 	local b = SoccerData.BallPos
 	local v = SoccerData.BallVelo
-	local listOfHeros = S5Hook.EntityIteratorTableize(Predicate.IsSettler())
+	local listOfHeros = S5Hook.EntityIteratorTableize(Predicate.OfCategory(EntityCategories.Hero))
 	local h
 	local normV = v[1]^2 + v[2]^2
 	local d = SoccerConfig.StopDistance^2
@@ -760,20 +753,56 @@ function CreateSpectators()
 		Models.CU_RegentDovbar,
 		Models.CU_Princess
 	}
+	local listOfSpectators = {
+		Entities.PV_Cannon1,
+		Entities.PV_Cannon2,
+		Entities.PU_LeaderSword3,
+		Entities.PU_LeaderRifle1,
+		Entities.PU_Serf,
+		Entities.PU_LeaderBow4,
+		Entities.CU_AlchemistIdle,
+		Entities.CU_MasterBuilder,
+		Entities.CU_Merchant,
+		Entities.CU_Wanderer,
+		Entities.CU_MinerIdle
+	}
+	local specCount = table.getn(listOfSpectators)
 	local modelCount = table.getn(listOfModels)
+	ListOfSpectators = {}
 	for x = 3800, 16300, 50 do
 		off = math.mod(off*5, 17)
-		eId = Logic.CreateEntity(Entities.XA_Deer, x, y + off*25, 270, 0)
-		Logic.SuspendEntity(eId)
-		Logic.SetModelAndAnimSet( eId, listOfModels[math.random(modelCount)])
+		if math.mod(off, 4) == 1 then
+			eId = Logic.CreateEntity(Entities.XA_Deer, x, y + off*25, 270, 0)
+			Logic.SuspendEntity(eId)
+			Logic.SetModelAndAnimSet( eId, listOfModels[math.random(modelCount)])
+		else
+			eId = Logic.CreateEntity(listOfSpectators[math.random(specCount)], x, y + off*25, 270, 0)
+			Logic.SuspendEntity(eId)
+			table.insert( ListOfSpectators, eId)
+			--S5Hook.GetEntityMem(eId)[130]:SetInt(4)
+		end
 	end
 	y = 5000
 	for x = 3800, 16300, 50 do
 		off = math.mod(off*5, 17)
-		eId = Logic.CreateEntity(Entities.XA_Deer, x, y + off*25, 90, 0)
-		Logic.SuspendEntity(eId)
-		Logic.SetModelAndAnimSet( eId, listOfModels[math.random(modelCount)])
+		if math.mod(off, 4) == 1 then
+			eId = Logic.CreateEntity(Entities.XA_Deer, x, y + off*25, 90, 0)
+			Logic.SuspendEntity(eId)
+			Logic.SetModelAndAnimSet( eId, listOfModels[math.random(modelCount)])
+		else
+			eId = Logic.CreateEntity(listOfSpectators[math.random(specCount)], x, y + off*25, 90, 0)
+			Logic.SuspendEntity(eId)
+			table.insert( ListOfSpectators, eId)
+			--S5Hook.GetEntityMem(eId)[130]:SetInt(4)
+		end
 	end
+	StartSimpleJob("RemoveOverheadWidgets")
+end
+function RemoveOverheadWidgets()
+	for i = 1, table.getn(ListOfSpectators) do
+		S5Hook.GetEntityMem(ListOfSpectators[i])[130]:SetInt(4)
+	end
+	return true
 end
 function CreateBoards()
 	-- Field:
@@ -888,7 +917,7 @@ end
 function EnforceRules()
 	-- first get all heroes near ball
 	local b = SoccerData.BallPos
-	local heroList = S5Hook.EntityIteratorTableize(Predicate.IsSettler(), Predicate.InCircle( b[1], b[2], SoccerConfig.NearBallRadius))
+	local heroList = S5Hook.EntityIteratorTableize(Predicate.OfCategory(EntityCategories.Hero), Predicate.InCircle( b[1], b[2], SoccerConfig.NearBallRadius))
 	local nHeroesA, nHeroesB = 0,0
 	for i = 1, table.getn(heroList) do
 		if GetTeamByPlayerId(GetPlayer(heroList[i])) == 1 then
@@ -924,7 +953,7 @@ function EnforceRules()
 	-- Enforce at max one team player in goal area
 	-- GOAL SOUTH
 	local goal = {3400, 9650}
-	heroList = S5Hook.EntityIteratorTableize(Predicate.IsSettler(), Predicate.InCircle( goal[1], goal[2], 850))
+	heroList = S5Hook.EntityIteratorTableize(Predicate.OfCategory(EntityCategories.Hero), Predicate.InCircle( goal[1], goal[2], 850))
 	local nHeroes = 0
 	for i = 1, table.getn(heroList) do
 		if GetTeamByPlayerId(GetPlayer(heroList[i])) == 1 then
@@ -939,7 +968,7 @@ function EnforceRules()
 	
 	-- GOAL NORTH
 	goal = {16700, 9650}
-	heroList = S5Hook.EntityIteratorTableize(Predicate.IsSettler(), Predicate.InCircle( goal[1], goal[2], 850))
+	heroList = S5Hook.EntityIteratorTableize(Predicate.OfCategory(EntityCategories.Hero), Predicate.InCircle( goal[1], goal[2], 850))
 	nHeroes = 0
 	for i = 1, table.getn(heroList) do
 		if GetTeamByPlayerId(GetPlayer(heroList[i])) == 2 then
@@ -997,7 +1026,7 @@ function AnnounceGoal( _benefitTeam)
 	Message("Es steht "..SoccerData.GoalsSouth..":"..SoccerData.GoalsNorth)
 end
 function DoGoalReset()
-	local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler())
+	local heroTable = S5Hook.EntityIteratorTableize( Predicate.OfCategory(EntityCategories.Hero))
 	local countA, countB = 1,1
 	local newId
 	for i = 1, table.getn(heroTable) do
@@ -1009,6 +1038,7 @@ function DoGoalReset()
 			countB = math.mod(countB, 11) + 1
 		end
 		Logic.SetEntitySelectableFlag( newId, 0)
+		GUI.DeselectEntity( newId)
 		DestroyEntity( heroTable[i])
 	end
 end
@@ -1036,7 +1066,7 @@ function ResumeGameJob()
 		ResumeCounter = ResumeCounter - 1
 	else
 		Message("HAJIME!")
-		local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler())
+		local heroTable = S5Hook.EntityIteratorTableize( Predicate.OfCategory(EntityCategories.Hero))
 		for i = 1, table.getn(heroTable) do 
 			Logic.SetEntitySelectableFlag( heroTable[i], 1)
 		end
@@ -1048,7 +1078,7 @@ end
 
 
 function PushHeroesBack( _pos, _ignoreId)
-	local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler(), Predicate.InCircle(_pos[1], _pos[2], SoccerConfig.Knockback))
+	local heroTable = S5Hook.EntityIteratorTableize( Predicate.OfCategory(EntityCategories.Hero), Predicate.InCircle(_pos[1], _pos[2], SoccerConfig.Knockback))
 	local hId, hPos, dX, dY, dis
 	for i = 1, table.getn(heroTable) do
 		hId = heroTable[i]
@@ -1063,7 +1093,7 @@ function PushHeroesBack( _pos, _ignoreId)
 	end
 end
 function PushTeamHeroesBack( _pos, _team)
-	local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler(), Predicate.InCircle(_pos[1], _pos[2], SoccerConfig.Knockback))
+	local heroTable = S5Hook.EntityIteratorTableize( Predicate.OfCategory(EntityCategories.Hero), Predicate.InCircle(_pos[1], _pos[2], SoccerConfig.Knockback))
 	local hId, hPos, dX, dY, dis
 	for i = 1, table.getn(heroTable) do
 		hId = heroTable[i]
@@ -1248,7 +1278,7 @@ function GetPos( _id)
 	return {Logic.GetEntityPosition(_id)}
 end
 function GetNearestHeroFromTeam( _teamId, _pos)
-	local heroTable = S5Hook.EntityIteratorTableize( Predicate.IsSettler())
+	local heroTable = S5Hook.EntityIteratorTableize( Predicate.OfCategory(EntityCategories.Hero))
 	local nearestHero = 0
 	local dis = 10^10
 	local disSq

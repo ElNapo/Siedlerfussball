@@ -1,12 +1,15 @@
 For next release:
-	Make (some) spectators less lovecraftian
 	Add more eye candy to the map?
 
+For next next release:
+	CHANGE HOT KEYS
+	Announce version in all chat?
+	Implement restart system?
+	
 For future releases:
 	Update to 16 players
-	Some automated version checker of sorts? Announce version in all chat?
+	Some automated version checker of sorts? 
 	Implement offsite?
-	Implement restart system?
 	
 Prob done:
 	THROW-IN BLOCKS PLAYERS
@@ -14,4 +17,5 @@ Prob done:
 	Stein sollte keine Helden löschen können
 	Helden beim Anstoß unselektierbar machen?
 	Add more flavour to game over screen
-	
+	Clear selection on goal reset
+	Make (some) spectators less lovecraftian
